@@ -7,10 +7,12 @@ paths <- data.frame(
     multivariado = "../rankings/multivariado",
     multivariadoRDS = "../rankings/multivariado/rds",
     modelos = "../modelos",
+    modelos_resultados = "../modelos/resultados",
     candidatos = "../modelos/seleccion",
     data = "../data",
     datos_run_models = "../data/datos_run_models",
-    dict = "../dict"
+    dict = "../dict",
+    factores_riesgo = "../factores_riesgo"
 )
 
 message("Creando directorios de trabajo")

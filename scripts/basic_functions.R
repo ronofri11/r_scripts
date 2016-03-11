@@ -1,6 +1,6 @@
 
-#These functions require some libraries to exist in global scope
-#like 'stringr'
+# Estas funciones requieren en el scope global haber cargado librerias
+# como dplyr y stringr
 
 str_remove_tilde <- function (string){
   string <- gsub("Ä|Á","A",
@@ -110,20 +110,19 @@ all_to_factor <- function(data){
 
 cast_to_numerics <- function(data, varlist){
   message("Convirtiendo variables a numeric")
-  daux <- data
+  data_aux <- data
   for(var in varlist){
-    message(var)
-    daux[, var] <- as.numeric(daux[, var])
+    data_aux[, var] <- suppressWarnings(as.numeric(data_aux[, var]))
   }
-  daux
+  data_aux
 }
 
 replace_values <- function(data, varlist, oldValue, newValue){
-  daux <- data
+  d <- data
   for(var in varlist){
-    daux[daux[, var] == oldValue, var] <- newValue
+    d[d[, var] == oldValue, var] <- newValue
   }
-  daux
+  d
 }
 
 
@@ -191,7 +190,7 @@ tcount <- function(data, var, response){
   total <- dim(data)[1]
   t <- data %>% group_by_(var, response) %>% summarise(n=n()) %>% mutate(
       percent=round(n/sum(n)*100, 2),
-      total_percent= round(n/total*100, 2)
+      total_percent=round(n/total*100, 2)
     )
   data.frame(t)
 }
@@ -202,7 +201,46 @@ contingency_tables <- function(data, varlist, response, output){
   }
   varlist <- setdiff(varlist, response)
   for(i in 1:length(varlist)){
+    message(i)
+    suppressWarnings(write.table(data.frame(), output, sep=";", dec=",", row.names=FALSE, append=TRUE))
     t <- tcount(data, varlist[i], response)
-    suppressWarnings(write.table(t, output, sep=";",dec=",",row.names=FALSE, append=TRUE))
+    suppressWarnings(write.table(t, output, sep=";", dec=",", row.names=FALSE, append=TRUE))
   }
+}
+
+colnames_to_file <- function(data, output){
+  cols <- colnames(data)
+  write.table(cols, output, sep=";", dec=",", row.names=FALSE)
+}
+
+# Falta agregar parametros de otros clasificadores
+model_fitter <- function(modelCode){
+  paramsList <- list(rf = list(method = "rf", par = data.frame(mtry=3)),
+                   rl = list(method = "plr", par = data.frame(cp="aic", lambda=1e-4)),
+                   plr = list(method = "plr", par = data.frame(cp="aic", lambda=10)),
+                   nnet = list(method = "nnet", par =data.frame(size=5, decay=0.1)),
+                   LogitBoost = list(method = "LogitBoost", par =data.frame(nIter=100)),
+                   ctree = list(method = "ctree", par =data.frame(mincriterion=0.95)),
+                   bayesglm = list(method = "bayesglm", par =NULL),
+                   ada = list(method = "ada", par =data.frame(iter = 100, maxdepth = 10, nu = 1)),
+                   knn = list(method = "knn", par =data.frame(k = 1)),
+                   gbm = list(method = "gbm", par =data.frame(n.trees=20,interaction.depth=20 , shrinkage=0.5))
+                  )
+  params <- paramsList[[modelCode]][["par"]]
+
+  if(modelCode == "ada"){
+    function(f, training) ada(f, data=training)
+  }
+  else{
+    function(f, training){
+      train(f, method=modelCode, data=training, tuneGrid=params, trControl=trainControl(method="none"))
+    }
+  }
+}
+
+
+tree_detect_variables <- function(file,variables){
+  tree <- readLines(file)[-(1:5)]
+  tree <- str_replace_all(tree,"\\s+","")
+  unique(str_replace_all(str_pattern(tree, paste(variables,collapse="|")),"^.+)|>.+$|<.+$|=.+$",""))
 }
